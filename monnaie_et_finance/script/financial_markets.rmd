@@ -1,0 +1,75 @@
+---
+title: "Economie monétaire et financière"
+author: "Thomas Delcey"
+date: '2022-06-27'
+output: 
+  html_document:
+    number_sections: true
+    toc: true
+    toc_float: true
+    code_folding: hide
+  pdf_document: 
+    latex_engine: xelatex
+
+---
+---
+
+```{r setup, include = FALSE}
+library(knitr)
+library(formatR)
+opts_chunk$set(warning = FALSE, message = FALSE)
+knitr::opts_chunk$set(tidy.opts = list(width.cutoff = 60), tidy = TRUE)
+```
+
+```{r, include=FALSE}
+library(here)
+source(here("paths_and_packages.R"))
+
+```
+
+
+# Evolution des marchés financiers 
+
+## World stock volumes 
+
+```{r gg_volume_by_country}
+df <- readxl::read_xls(here(data_path, "stock_volume", "API_CM.MKT.TRAD.CD_DS2_en_excel_v2_4773985.xls"), sheet = 1)
+
+df_volume_by_country <- df %>%
+  select(c(1:2, 5:66)) %>%
+  melt(id.vars = c("Country Code", "Country Name"), value.name = "volume", variable.name = "year")
+
+
+gg_volume_by_country <- df_volume_by_country %>%
+  filter(`Country Code` == "WLD") %>%
+  filter(!is.na(volume)) %>%
+  mutate(year = as.numeric(as.character(year))) %>%
+  group_by(year) %>%
+  summarise(n = sum(volume)/1e9) %>%
+  ggplot(aes(x = year , y = n, group = 1)) +
+  geom_line(linewidth=1, color = "darkblue") +
+  ylab("Milliards de dollars") +
+  xlab("Année") +
+  theme_light() +
+  labs(title = "Evolution des transactions boursières au niveau mondial depuis 1975", 
+       subtitle = "Volumes annuels en milliards de dollars",
+       caption = "Source: Word Bank")
+
+ggsave(here(figure_path, "gg_volume_by_country.png"), gg_volume_by_country, device = "png", width=8, height=5, dpi=300)
+
+plot(gg_volume_by_country)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
