@@ -1,0 +1,282 @@
+---
+title: "Changement climatique"
+author: "Thomas Delcey"
+date: '2022-06-27'
+output: 
+  html_document:
+    number_sections: true
+    toc: true
+    toc_float: true
+    code_folding: hide
+  pdf_document: 
+    latex_engine: xelatex
+
+---
+---
+
+```{r setup, include = FALSE}
+library(knitr)
+library(formatR)
+opts_chunk$set(warning = FALSE, message = FALSE)
+knitr::opts_chunk$set(tidy.opts = list(width.cutoff = 60), tidy = TRUE)
+```
+
+```{r, include=FALSE}
+library(here)
+source(here("paths_and_packages.R"))
+
+course_path <- here(project_path, "economie_environnement")
+data_path <- here(course_path, "data")
+figure_path <- here(course_path, "figure")
+
+```
+
+
+# Temperature  
+
+## Global
+
+```{r}
+df <- read.csv(here(data_path, "global_warming.csv"), sep = ",")
+
+gg <- df %>%
+  ggplot() +
+  geom_line(aes(x = Year, y = `Lowess.5.`), linewidth = 1, color = "blue") +
+  ylab("Degr? Celsius") +
+  xlab("Ann?e") +
+  theme_light()
+
+ggsave(here(figure_path, "global_warming_short.png"), gg, device = "png", width=6, height=5, dpi=300)
+
+plot(gg)
+```
+
+## sea and land 
+
+```{r}
+df <- read.csv(here(data_path, "global_warming_sea_land.csv"), sep = ",")
+
+gg <- df %>%
+  ggplot() +
+  geom_line(aes(x = Year, y = `Lowess.5.`, color = "Terres"), linewidth = 1) +
+  geom_line(aes(x = Year, y = `Lowess.5..1`,  color = "Mers"), linewidth = 1) +
+  scale_color_manual(name = "", values = c("Terres" = "darkred", "Mers" = "darkblue")) +
+  ylab("Degr? Celsius") +
+  xlab("Ann?e") +
+  theme_light()
+
+ggsave(here(figure_path, "global_warming_sea_land.png"), gg, device = "png", width=6, height=5, dpi=300)
+
+plot(gg)
+```
+
+# CO2
+
+## global
+
+```{r}
+df <- read_xlsx(here(data_path, "contribution_CO2.xlsx"), col_names = TRUE)
+
+df2 <- df %>%
+  select(c(`Changement d'affectation des sols`, `Ressources fossiles et industries`, Année)) %>% 
+  rename("Affectation des sols" = `Changement d'affectation des sols`) %>%
+  pivot_longer(!Année)
+
+gg <- df2 %>%
+  ggplot() +
+  geom_area(aes(x = Année, y = as.numeric(value), fill = name), position = position_stack(reverse = T)) +
+  scale_fill_manual(name = "", values = c("Affectation des sols" = "darkgreen", "Ressources fossiles et industries" = "darkorange")) +
+  guides(fill = guide_legend(reverse=TRUE)) +
+  ylab("milliards de tonnes de CO2 par an") +
+  theme_light()
+
+ggsave(here(figure_path, "CO2_area.png"), gg, device = "png", width=10, height=5, dpi=300)
+
+plot(gg)
+
+```
+
+## fossil 
+
+```{r}
+df <- read_xlsx(here(data_path, "contribution_CO2.xlsx"), col_names = TRUE)
+
+df3 <- df %>%
+  select(-c(`Ressources fossiles et industries`, Total)) %>% 
+  rename(Varia = Autres) %>%
+  pivot_longer(!Année)
+
+gg <- df3 %>%
+  ggplot() +
+  geom_area(aes(x = Année, y = as.numeric(value), fill = name), position = position_stack(reverse = T)) +
+  scale_fill_manual(name = "", values = c("Changement d'affectation des sols" = "darkgreen", 
+                                          "Gaz" = "yellow", 
+                                          "P?trole" = "darkblue",
+                                          "Charbon" = "darkgrey",
+                                          "Production du ciment" = "pink",
+                                          "Varia" = "darkorange")) +
+  guides(fill = guide_legend(reverse=TRUE)) +
+  ylab("milliards de tonnes de CO2 par an") +
+  theme_light()
+
+ggsave(here(figure_path, "CO2_area_details.png"), gg, device = "png", width=10, height=5, dpi=300)
+
+plot(gg)
+
+```
+
+## by country 
+
+```{r}
+
+df <- read_xlsx(here(data_path, "repartition_gaz.xlsx"), col_names = TRUE)
+
+
+df <-df %>%
+  rename('fossiles' = "Ressources fossiles et industrie",
+         'sols' = "Changement d'affecation des sols") %>%
+  select(-c(`Pourcentage de la région`)) %>%
+  melt(id.vars=0:1) %>%
+  group_by(Régions) %>%
+  mutate(lab_ypos = cumsum(as.numeric(value)) - 0.5 * as.numeric(value)) %>%
+  mutate(value = ifelse(value == 0.00, "", value))
+
+gg <- ggplot(df, aes(x = Régions, y = as.numeric(value))) +
+  geom_col(aes(fill = variable), width = 0.9, position = position_stack(reverse = T)) +
+  scale_fill_manual(name = "", values = c("darkorange", "darkgreen")) +
+  geom_text(aes(y = lab_ypos, label = value, group = 'Emission'), color = "white") +
+  theme_light() +
+  theme(axis.text.x=element_text(angle=90,hjust=1,vjust=0.5)) +
+  ylab(expression(paste("Emission de ", CO[2], " cumul?e")))
+
+
+ggsave(here(figure_path, "repartition_gaz_cumule.png"), gg, device = "png", width=10, height=5, dpi=300)
+
+plot(gg)
+
+```
+
+## 2019 per capita 
+
+```{r}
+df <- read_xlsx(here(data_path, "repartition_gaz_2019.xlsx"), col_names = TRUE)
+
+df2 <-df %>%
+  rename('fossiles' = "CO2-Ressources fossiles et industries (tonnes CO2-eq per capita)",
+         'sols' = "CO2-Changement d'affectation des sols (tonnes CO2-eq per capita)") %>%
+  select(-c(`Cumulative population in millions`, `Autres gaz à effet de serre (tonnes CO2-eq per capita)`, Total)) %>%
+  melt(id.vars=0:1) %>%
+  group_by(Region)
+
+gg <- df2 %>%
+  group_by(Region) %>%
+  mutate(total = sum(as.numeric(value))) %>%
+  ggplot(aes(x = Region, y = as.numeric(value))) +
+  geom_col(aes(fill = variable), width = 0.9, position = position_stack(reverse = T)) +
+  scale_fill_manual(name = "", values = c("darkorange", "darkgreen")) +
+  geom_text(aes(y = total+0.7, label = total, group = 'Emission'), color = "black") +
+  theme_light() +
+  theme(axis.text.x=element_text(angle=90,hjust=1,vjust=0.5)) +
+  ylab(expression(paste("Emission de ", CO[2], " en 2019 / habitant")))
+
+ggsave(here(figure_path, "repartition_gaz_2019.png"), gg, device = "png", width=10, height=8, dpi=300)
+
+plot(gg)
+
+
+```
+
+## Carbon footprint 
+
+
+```{r}
+df <- read_xlsx(here(data_path, "emprunte_carbonne.xlsx"), col_names = TRUE)
+
+df2 <- df %>%
+  rename('emission' = "...1") %>%
+  #select(-c(`Pourcentage de la r?gion`)) %>%
+  melt(id.vars=0:1) %>%
+  mutate(value = as.numeric(value)) %>%
+  group_by(variable) %>%
+  mutate(difference = value - head(value, n = 1)) %>%
+  filter(emission == "Empreinte") 
+
+gg <- df2 %>%
+  ggplot(aes(x = variable, y = as.numeric(difference))) +
+  geom_col(fill = "midnightblue") +
+  ylab(expression(paste("Tonnes de ", CO[2], " en 2019 / habitant"))) +
+  xlab("R?gion") +
+  theme_light() +
+  theme(axis.text.x=element_text(angle=90,hjust=1,vjust=0.5))
+
+ggsave(here(figure_path, "emprunte_carbonne_2019.png"), gg, device = "png", width=10, height=8, dpi=300)
+
+plot(gg)
+
+
+```
+
+
+## word emission by activities 
+
+
+```{r}
+df <- read_xlsx(here(data_path, "emission_secteur_direct.xlsx"), col_names = TRUE)
+
+gg <- df %>% 
+  mutate(`%` = as.character(`%`)) %>%
+  mutate(ymax = cumsum(`%`),
+         ymin = c(0, head(ymax, n=-1)),
+         labelPosition = (ymax + ymin)/2,
+         label = paste0(Secteur, "\n Valeur: ", `%`, "%")) %>%
+  ggplot(aes(ymax=ymax, ymin=ymin, xmax=4, xmin=3, fill = Secteur)) +
+  geom_rect() +
+  geom_label(aes(x = 3.5, y=labelPosition, label=label), size=5) +
+  coord_polar(theta="y") +
+  xlim(c(2, 4)) +
+  scale_fill_viridis_d() +
+  theme_void() + 
+  theme(legend.position = "none")
+
+ggsave(here(figure_path, "emission_secteur_direct.png"), gg, device = "png", width=10, height=8, dpi=300)
+
+plot(gg)
+
+```
+
+#US Federal discount rate 
+
+```{r}
+df <- read_xlsx(here(data_path, "discount_rate_OMB.xlsx"), col_names = TRUE)
+
+gg <- df %>%
+  mutate(Année = str_extract(`Calendar Year`, "[0-9]{4}")) %>%
+  rename("3 ans" = `3-Year`,
+         "5 ans" = `5-Year`,
+         "7 ans" = `7-Year`,
+         "10 ans" = `10-Year`,
+         "30 ans" = `30-Year`) %>%
+  select(c("7 ans", Année)) %>%
+  melt(id = 'Année') %>%
+  ggplot() +
+  geom_line(aes(x = as.numeric(Année), y = as.numeric(value), group = variable), linewidth = 2, color = "midnightblue") +
+  ylab("Taux d'actualisation choisi ? 7 ans") +
+  xlab("Année") +
+  theme_light() +
+  theme(axis.text=element_text(size=15),
+      axis.title=element_text(size=12))
+
+ggsave(here(figure_path, "discount_rate_OMB.png"), gg, device = "png", width=10, height=8, dpi=300)
+
+plot(gg)
+
+
+```
+
+
+
+
+
+
+
+
