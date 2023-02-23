@@ -25,6 +25,10 @@ knitr::opts_chunk$set(tidy.opts = list(width.cutoff = 60), tidy = TRUE)
 library(here)
 source(here("paths_and_packages.R"))
 
+course_path <- here(project_path, "monnaie_et_finance")
+data_path <- here(course_path, "data")
+figure_path <- here(course_path, "figure")
+
 ```
 
 
@@ -60,8 +64,6 @@ ggsave(here(figure_path, "gg_volume_by_country.png"), gg_volume_by_country, devi
 plot(gg_volume_by_country)
 
 ```
-
-
 
 
 

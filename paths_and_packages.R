@@ -28,7 +28,3 @@ if(str_detect(getwd(), "thomd")){
 
 
 
-course_path <- here(project_path, "monnaie_et_finance")
-data_path <- here(course_path, "data")
-figure_path <- here(course_path, "figure")
-
