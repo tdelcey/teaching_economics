@@ -1,0 +1,102 @@
+---
+title: "Economie monétaire et financière"
+author: "Thomas Delcey"
+date: '2022-06-27'
+output: 
+  html_document:
+    number_sections: true
+    toc: true
+    toc_float: true
+    code_folding: hide
+  pdf_document: 
+    latex_engine: xelatex
+
+---
+---
+
+```{r setup, include = FALSE}
+library(knitr)
+library(formatR)
+opts_chunk$set(warning = FALSE, message = FALSE)
+knitr::opts_chunk$set(tidy.opts = list(width.cutoff = 60), tidy = TRUE)
+```
+
+```{r, include=FALSE}
+library(here)
+source(here("paths_and_packages.R"))
+
+course_path <- here(project_path, "monnaie_et_finance")
+data_path <- here(course_path, "data")
+figure_path <- here(course_path, "figure")
+
+```
+
+
+# Capitalisation and discounting 
+
+## capitalisation
+
+```{r}
+library(scales) #label_comma function
+
+x <-1:50
+y = 500
+
+df<-data.frame(x)
+
+gg <- ggplot(df, aes(x))+
+  geom_function(fun=function(x) y*(1+0.01)^x, linewidth = 1, aes(col = "1%")) +
+  geom_function(fun=function(x) y*(1+0.02)^x, linewidth = 1, aes(col = "2%")) +
+  geom_function(fun=function(x) y*(1+0.04)^x, linewidth = 1, aes(col = "4%")) +
+  geom_function(fun=function(x) y*(1+0.06)^x, linewidth = 1, aes(col = "6%")) +
+  scale_colour_manual(name = "", values = c("1%" = "midnightblue","2%" ="darkred","4%" ="darkgreen", "6%" ="black")) +
+  xlab("Temps") +
+  ylab("Valeur") + 
+  theme_light() +
+  scale_y_continuous(labels = label_comma()) +
+  theme(
+    axis.text=element_text(size=15),
+    axis.title=element_text(size=15),
+    legend.text=element_text(size=15)) +
+    labs(title = paste("Evolution de la valeur de", y, "euros sur", max(x), "ans"))
+
+ggsave(here(figure_path, "valeur_capitalisé.png"), gg, device = "png", width=10, height=8, dpi=300)
+
+plot(gg)
+```
+
+## discounting 
+
+```{r}
+x <- 1:50
+y <- 500
+df<-data.frame(x)
+
+gg <- ggplot(df,aes(x))+
+     geom_function(fun=function(x) y/(1+0.01)^x, linewidth = 1, aes(col = "1%")) +
+     geom_function(fun=function(x) y/(1+0.02)^x, linewidth = 1, aes(col = "2%")) +
+     geom_function(fun=function(x) y/(1+0.04)^x, linewidth = 1, aes(col = "4%")) +
+     geom_function(fun=function(x) y/(1+0.06)^x, linewidth = 1, aes(col = "6%")) +
+     scale_colour_manual(name = "", values = c("1%" = "midnightblue","2%" ="darkred","4%" ="darkgreen", "6%" ="black")) +
+     xlab("Temps") +
+     ylab("Valeur actualisée") + 
+     theme_light() + 
+     labs(title = paste("Evolution de la valeur actuelle de", y, "euros sur", max(x), "ans"))
+
+ggsave(here(figure_path, "valeur_actualisée.png"), gg, device = "png", width=10, height=8, dpi=300)
+
+plot(gg)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
