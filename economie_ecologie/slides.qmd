@@ -1,0 +1,1969 @@
+---
+title: "SAE 4.01: Economie écologique"
+lang: fr
+author: "Thomas Delcey"
+format:
+  revealjs:
+    css: custom.css
+    theme: moon
+    transition: convex
+    data-background-interactive: true
+    slide-number: c/t
+    toc: true
+    toc-depth: 2
+    slide-level: 3
+    embed-resources: true
+    view-distance: 100
+  # beamer: 
+  #   aspectratio: 32
+  #   navigation: horizontal
+  #   theme: AnnArbor
+  #   colortheme: lily
+  #   prefer-html: true
+  #   embed-resources: true
+
+---
+
+```{r load packages, data, and functions, include = FALSE}
+source(here::here("paths_and_packages.R"))
+
+data_path <- here(data_path, "ecological_economics")
+#data 
+
+# owid_search("anomaly")
+# temperature_anomaly <- owid("temperature-anomaly")
+# saveRDS(temperature_anomaly, here(data_path, "temperature_anomaly.rds"))
+temperature_anomaly <- readRDS(here(data_path, "temperature_anomaly.rds"))
+
+
+
+#total_greenhouse_emission <- wb_data("EN.ATM.GHGT.KT.CE")
+#saveRDS(total_greenhouse_emission, here(data_path, "total_greenhouse_emission.rds"))
+total_greenhouse_emission <- readRDS(here(data_path, "total_greenhouse_emission.rds"))
+
+# gdp <- wb_data("NY.GDP.MKTP.CD")
+# saveRDS(gdp, here(data_path, "gdp.rds"))
+gdp <- readRDS(here(data_path, "gdp.rds"))
+
+# gdp_capita <- wb_data("NY.GDP.PCAP.PP.CD")
+# saveRDS(gdp_capita, here(data_path, "gdp_capita.rds"))
+gdp_capita <- readRDS(here(data_path, "gdp_capita.rds"))
+
+
+# total_greenhouse_emission_capita <- wb_data("EN.ATM.CO2E.PC")
+# saveRDS(total_greenhouse_emission_capita, here(data_path, "total_greenhouse_emission_capita.rds"))
+total_greenhouse_emission_capita <- readRDS(here(data_path, "total_greenhouse_emission_capita.rds"))
+
+# owid_search("greenhouse")
+# total_greenhouse_emission_2 <- owid("ghg-emissions-by-gas")
+# 
+# saveRDS(total_greenhouse_emission_2, here(data_path, "total_greenhouse_emission_2.rds"))
+total_greenhouse_emission_2 <- readRDS(here(data_path, "total_greenhouse_emission_2.rds"))
+
+# owid_search("sector")
+# emission_sector <- owid("ghg-emissions-by-sector")
+# saveRDS(emission_sector, here(data_path, "emission_sector.rds"))
+emission_sector <- readRDS(here(data_path, "emission_sector.rds"))
+
+
+
+#a function to color a stfring pattern  in a kable table (only worked when the output is an html doc and kable option escape = FALSE)
+
+color_letters <- function(text, patterns_to_color, color) {
+  for (pattern in patterns_to_color) {
+    text <- str_replace_all(text,
+                            pattern,
+                            paste0("<span style='color:", color, ";'>", pattern, "</span>"))}
+  return(text)
+}
+```
+
+# Introduction
+
+
+### Economie et climat 
+
+```{r}
+#| label: "Anomaly"
+
+temperature_anomaly %>% 
+  filter(entity == "Global") %>%
+  ggplot(aes(y = `Global average temperature anomaly relative to 1961-1990`,
+             color = `Global average temperature anomaly relative to 1961-1990`,
+             x = year,legend.show = FALSE)) +
+  geom_line() +
+  geom_point() +
+  scale_color_gradient(name = "", low = "lightblue", high = "red") +  # Définit le dégradé de couleur
+  labs(title = "Anomalie de température",
+      subtitle = "(relativement à la moyenne de la période 1961-1990)",
+       y = "°C", 
+       x = "",
+       caption = "Données: Our World in Data") + 
+  theme_minimal(base_size = 15) + 
+  guides(color = FALSE)  # Cacher la légende de la couleur
+```
+
+:::{.notes}
+- définir anomalie 
+- souligner le caractère extraordinnaire de l'augmentation 
+:::
+
+### Anomalie de température
+
+![Source: GIEC](image/IPCC_WG1_temperature_anomaly.png)
+
+:::{.notes}
+- Présenter le GIEC rapidement (on y revient après)
+- Définir reconstruit 
+- Définir facteurs humains et naturels 
+:::
+
+### L'anthropocène 
+
+
+> "L'anthropocène [l'ère de l'être humain] est une proposition d'époque géologique pour caractériser l'influence actuelle de l'être humain sur la géologie et les écosystèmes" (wikipedia). 
+
+. . . 
+
+- Cette période a commencé pendant la révolution industrielle et l'émergence des économies globalisées. 
+
+
+:::{.notes}
+
+- Rappellez le caractère extraordinaire de notre période 
+  - Subit l'évolution de notre planète, de son climat, de ces écostystèmes, etc.
+  - Aujourd'hui, nous en sommes l'acteur principal.
+  - Tout commence avec le capitalisme, donnez sa définition comme mode de production
+  - Révolution industrielle basée sur l'exploitation de nouvelles sources énergétiques 
+  - Globalisation  
+:::
+
+### Economie et climat 
+
+```{r}
+#| label: "PIB et Eco2 (sans Chine et USA)"
+
+gdp_greenhouse_country <- total_greenhouse_emission %>%
+  filter(date == 2019) %>%
+  select(country, date, EN.ATM.GHGT.KT.CE) %>%
+  left_join(gdp %>% filter(date == 2019) %>%
+              select(country, NY.GDP.MKTP.CD, date)) %>%
+  filter(!is.na(EN.ATM.GHGT.KT.CE) | !is.na(NY.GDP.MKTP.CD)) %>%
+  slice_max(NY.GDP.MKTP.CD, n = 30) %>%
+  mutate(color = setNames(rainbow(length(country)), country)) 
+
+gdp_greenhouse_country %>%
+  filter(!str_detect(country, "China|United States")) %>%
+  ggplot(aes(
+    x = EN.ATM.GHGT.KT.CE,
+    y = NY.GDP.MKTP.CD,
+    group = country,
+    color = color
+  )) +
+  geom_point(show.legend = FALSE) +
+  ggrepel::geom_text_repel(aes(x = EN.ATM.GHGT.KT.CE,
+        y = NY.GDP.MKTP.CD,
+        label = country),
+    show.legend = FALSE
+  ) +
+  labs(title = "PIB et émission de gaz à effet de serre en 2019",
+       x = "Emission de gaz à effet de serre",
+       y = "PIB") +
+  theme_light() +
+  theme(axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        text = element_text(size = 20),
+        axis.title.y = element_text(angle = 0, vjust = 0.5, hjust = 0))
+
+```
+
+:::{.notes}
+- Expliquer le graphique: x, y, chaque point
+- Plus vous produisez de recherche, plus vous polluez.
+:::
+
+### Economie et climat 
+
+```{r}
+#| label: "PIB et Eco2 (avec Chine et USA)"
+
+gdp_greenhouse_country %>%
+  ggplot(aes(
+    x = EN.ATM.GHGT.KT.CE,
+    y = NY.GDP.MKTP.CD,
+    group = country,
+    color = color
+  )) +
+  geom_point(show.legend = FALSE) +
+  ggrepel::geom_text_repel(aes(x = EN.ATM.GHGT.KT.CE,
+        y = NY.GDP.MKTP.CD,
+        label = country),
+    show.legend = FALSE
+  ) +
+  labs(title = "PIB et émission de gaz à effet de serre en 2019",
+       subtitle = "(avec Chine et Etats-Unis)",
+       x = "Emission de gaz à effet de serre",
+       y = "PIB") +
+  theme_light() +
+  theme(axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        text = element_text(size = 20),
+        axis.title.y = element_text(angle = 0, vjust = 0.5, hjust = 0))
+  
+
+``` 
+
+:::{.notes}
+- discuter la place de la France face à l'importance des émissions chinoises et américaines
+:::
+
+
+### Objectifs de cette SAE 
+
+- Comprendre les principaux enjeux de la crise climatique: 
+  - qu'est-ce qui réchauffe le climat ?
+  
+. . . 
+
+- Comprendre la relation entre climat et économie: 
+  - qui réchauffe le climat ? Quels secteurs ?
+  
+. . .
+
+- Maîtriser les solutions globales à la crise climatique et celles à l'échelle du consommateur et de l'entreprise. 
+
+# Chapitre 0: Présentation du projet de groupe 
+
+### Sujet {.scrollable}
+
+> Vous êtes mandatées par le conseil d'administration d’une entreprise (de votre choix) afin de l’aider à réaliser sa transition écologique. L’entreprise aimerait adopter la qualité de société à mission introduite par la loi Pacte de 2019 afin de se fixer un objectif environnemental. 
+
+> Vous devez réaliser une analyse de l’entreprise afin d’identifier ces risques environnementaux et l'empreinte carbone de ces produits. A partir de cette analyse, vous proposerez une mission à l’entreprise à travers le cadre strict de qualité de société à mission. 
+
+### La société à mission 
+
+> "Le terme « entreprise à mission » (ou société à mission) désigne en France les formes d'entreprise qui se donnent statutairement une finalité d'ordre social ou environnemental en plus du but lucratif." (wikipedia)
+
+- CM avec Mr. Mounir Kheyi le jeudi 15 février 2024 à 1h puis TD.
+  - Mission (raison d'être et objectifs)
+  - Axes stratégiques 
+  - Comité de mission 
+  - Plan d'action 
+
+### Le choix de l'entreprise {.scrollable}
+
+- Le choix de l'entreprise n'a que peu d'importance dans l'absolu.
+
+. . . 
+
+- C'est surtout le secteur d'activité (le marché) choisi qui va orienter votre travail. 
+  
+. . . 
+
+- Plusieurs possibilités: 
+  - Energie 
+  - Agriculture 
+  - Bâtiment 
+  - Textile
+  - Banque ou finance
+  - Industrie
+  - etc. 
+  
+- Choix de l'entreprise a validé avec Mr Mounir Kheyi.
+  
+:::{.notes}
+
+Le groupe choisit une entreprise et un secteur activité de son choix. Les critères à respecter sont les suivants: 
+- L’entreprise n’est pas une société à mission.
+- L’entreprise a une activité en France. 
+- L’entreprise doit être une petite ou moyenne entreprise. Vous pouvez choisir un établissement local d’une grande organisation, si cette dernière permet à ces entités locales d’adopter la qualité de société à mission. 
+
+:::
+
+### Les risques environnementaux de l'entreprise {.scrollable}
+
+- Vous devez réaliser une analyse de l’entreprise afin d’identifier ces risques environnementaux et l'empreinte carbone de ces produits. 
+
+- Les risques environnementaux sont doubles: 
+
+1. L'impact de l'environnement sur l'entreprise.
+
+2. L'impact de l'entreprise sur l'environnement.
+
+:::{.notes}
+Bien distinguer l'impact de l'entreprise sur l'env et l'impact de l'env sur l'entreprise.
+:::
+
+### L'impact de l'entreprise sur l'environnement.
+
+
+- Analyser le processus de production;
+- Evolution des coûts de production; 
+- Changement de comportement des consommateurs;
+- Nouvelles réglementation. 
+
+
+### L'empreinte carbone d'un produit 
+
+- Obligation de se focaliser sur l'émission carbone de l'entreprise (d'autres facteurs sociaux et environnementaux peuvent être évoqués).
+
+. . . 
+
+- Analyser le cycle de vie du produit: 
+  - Production des matières premières;
+  - Mise en forme des matières premières;
+  - Assemblage et distribution;
+  - Utilisation du produit; 
+  - La fin de vie. 
+  
+::: {.notes}
+
+Source: [Ademe.fr](https://librairie.ademe.fr/produire-autrement/1190-modelisation-et-evaluation-du-poids-carbone-de-produits-de-consommation-et-biens-d-equipement.html)
+
+- Certains produits sont surtout polluants lorsqu'ils sont utilisés, comme les voitures à carburation, d'autres sont polluant uniquement sur la phase d'assemblage, voitures électriques.
+- la durée de vie du produit joue un rôle central (un produit qui est très impactant peu avoir un empreinte moins forte qu'un produit faiblement impactant selon leur durée de vie).
+
+- "Local" n'implique pas forcement bon.: exemple des tomates élevées en serres en France ou en plein air au Maroc. 
+
+
+
+:::
+
+### Evaluation {.scrollable}
+
+- Vous défendrez votre travail devant le conseil d’administration de l'entreprise sous le format d'un **poster** (projeter sur un écran) que vous présenterez en **5 minutes**. 
+
+- Vous serez ensuite potentiellement interrogé pendant **15 minutes** sur: 
+  - Le contenu du poster;
+  - Les principaux enjeux de la crise climatique (vu avec moi);
+  - Votre démarche d'adoption de la qualité de société à mission (vu en ressources avec Mr. Mounir Kheyi).
+  
+### Le poster
+
+- Le poster doit inclure les choses suivantes: 
+  - L'identification du risque environnementale de l'entreprise;
+  - Une proposition pour atténuer ou supprimer cet impact; 
+  - Sa mise en place dans le cadre de la qualité de société à mission. 
+  
+### Le poster
+
+- Le poster est une grande affiche qui présente l'ensemble des éléments sur une page;
+- Vous pouvez rajouter des slides pour préparer les réponses aux questions: 
+  - Présentation des sources utilisées;
+  - Elements supplémentaires de l'analyse.
+
+::: {.notes}
+  - travail de synthèse 
+  - schema 
+  - chiffre clefs 
+  - etc.
+:::
+
+### Deadlines {.scrollable}
+
+- Formation des groupes: 
+  - Groupes de 3 ou 4 personnes au sein **d'un même groupe TP** ;
+  - Entre 3 et 4 groupes par TP ; 
+  - Les groupes sont à constituer au plus tard pour la semaine prochaine: **le mardi 6 février 2024** ;
+  - L'entreprise est à trouver au plus tard le **mardi 13 février 2024**.
+
+### Recherche 
+
+- Recherche: 
+  - Dès maintenant ;
+  - Accompagnement: moi et Mr. Mounir Kheyi;
+  - On se voit chaque semaine ou presque (en CM et en TD);
+  - Prise de rendez-vous par mail pour un entretien individuel. 
+
+### Evaluation
+
+  - Semaine du 1er avril 2024;
+  - Répétition et formation avec Mme. Gwenaelle Sifferlen;
+  - Soutenance entre le 8 avril et le 12 avril 2024.
+
+
+:::{.notes}
+Insister sur la difficulté de l'exercice: 
+- Travail en autonomie en groupe;
+- Autonomie (pas de contrôle de votre travail, uniquement une évaluation de l'output);
+- Groupe (gérer les dynamiques, méthodes de travail différents).
+
+:::
+
+### Ecologie et greenwashing 
+
+{{< video https://www.youtube.com/watch?v=QNv9PRDIhes 
+    width="1600" height="550"
+    title=La spirale du climat (source vidéo: NASA) >}}
+
+### Méthodologie {.scrollable}
+
+- Le choix des sources est crucial. Privilegiez: 
+  - Les ressources de la SAE;
+  - Les institutions publiques spécialisisées: 
+    - Haut Conseil pour le Climat;
+    - [Agence de la transition climatique](https://agirpourlatransition.ademe.fr/entreprises/);
+  - Certains sites spécialisées:
+    - Le monde;
+    - Bonpote.com. 
+
+:::{.notes}
+- Fichiers ressources que j'ai constitué à votre disposition.
+:::
+
+
+# Chapitre 1: La crise climatique
+
+
+### Le GIEC 
+
+- Le Groupe d'Experts Intergouvernemental sur l'évolution du Climat (GIEC, _IPPC_ en anglais) est créé en 1988.
+
+. . . 
+
+- Il est composé de trois groupes de travail: 
+  - Le groupe 1 étudie les **aspects physiques** du réchauffement climatique ;
+  - Le groupe 2 étudie les **conséquences** du réchauffement climatique (sur les systèmes naturels et humains): Adaptation;
+  - Le groupe 3 étudie les **politiques visant à stopper** le réchauffement climatique: Atténuation; 
+
+
+### Definitions: environnement et écologie 
+
+- **L'environnement** est compris comme l'ensemble des objets naturels, vivants ou non vivants, et l'ensemble de leurs interactions ; 
+- **L'écologie** est la science qui étudie les êtres vivants, et leurs interactions avec leurs environnements. 
+  - La notion décrit aussi un mouvement politique à ne pas confondre avec la discipline scientifique.
+
+
+### Biodiversité 
+
+- La **biodiversité** désigne la variabilité des organismes vivants et de leurs écosystèmes ;
+- Un **écosystème** est une communauté d'êtres vivants qui développent un réseau d'interdépendance entres eux et avec leur environnement ; 
+
+. . . 
+
+- Une **crise écologique** (ou environnementale) est une dégradation de la biodiversité d'un écosystème. 
+
+
+### Pourquoi preserver la biodiversité ? 
+
+. . .
+
+:::::{.columns}
+
+::::{.column width=50%}
+
+1. **Valeur extrinsèque**: 
+  - nourritures (extractions, pollinisation, etc.);
+  - capture du carbone;
+  - pharmacologie ;
+  - biomimétisme ;
+  
+::::
+
+::::{.column width=50%}
+:::  {.fragment}
+
+2. **Valeur intrinsèque**: 
+  - valeur esthétique ;
+  - valeur culturelle ;
+
+:::
+:::  {.fragment}
+
+3. **Principe de précaution**: 
+
+  - incertitudes ;
+  - irréversibilités.
+  
+:::
+
+::::
+
+:::::
+
+### Crise écologique $\ne$ crise climatique
+
+. . . 
+
+::::{.columns}
+
+:::{.column width=50%}
+- Pollution des environnements
+- Changements d'affectation des sols
+- Introduction artificelle d'espèces 
+- Réchauffement climatique
+:::  
+
+:::{.column width=50%}
+![Pollution des environnements](image/marée_noire.jpg){width=230px height=180px}
+![Changements d'affectations des sols](image/deforestation.jpg){width=230px height=180px}
+![Rechauffement climatique](image/lapin_australie.jpg){width=230px height=180px}
+![Rechauffement climatique](image/rechauffement_climatique.jpeg){width=230px height=180px}
+:::
+
+::::
+
+
+:::{.notes}
+La crise climatique désigne le réchauffement climatique et ces conséquences. C'est une crise écologique globale mais ce n'est pas seule crise écologique possible. 
+
+
+Source image: Wikipedia 
+:::
+
+### Definitions: climat et météorologie 
+
+- Le **climat** est l'étude des conditions atmosphériques à **long terme**. Ses conditions sont **prévisibles**.
+
+- La **météorologie** est l'étude des conditions atmosphériques à **court terme**. Ses conditions sont difficilement **prévisibles**.
+
+:::{.notes}
+- La météorologie est difficilement prévisible car il s'agit d'un système sensible aux conditions initiales
+- Une modification initiale du système entraîne des résultats extrêmement différents
+- On parle souvent "d'effet papillon" dans la culture populaire: « Le battement d'ailes d'un papillon au Brésil peut-il provoquer une tornade au Texas ? » 'titre d'une conférence du météorologue Edward Lorenz. 
+- Donner l'exemple du double pendule si besoin. 
+:::
+
+### Climat et météo 
+
+{{< video https://www.youtube.com/watch?v=jWoCXLuTIkI 
+    width ="1600" height="550"
+    title=La spirale du climat (source vidéo: NASA) >}}
+
+:::{.notes}
+La température normale (O degré) est définie sur la période 1951-1980.
+:::
+
+### Le réchauffement du climat 
+
+. . . 
+
+Définition du GIEC du forcage radiatif: 
+
+> "Le forçage radiatif mesure l’impact de certains facteurs affectant le climat sur l’équilibre énergétique du système couplé Terre/atmosphère. 
+
+. . . 
+
+
+Les activités humaines produisent deux effets contraires: 
+
+- Elles refroidissent (un peu): **les aérosols**  
+- Elles réchauffent (beaucoup): **les gaz à effet de serre**
+
+
+:::{.notes}
+
+- Le réchauffement du climat peut se comprendre comme une modification durable de l'équilibre énergétique de la planète. 
+- L'apport principal en énergie de la terre est le soleil, lumières, rayonnements, etc. (le reste, minime, provient du noyau de la terre, des combustions humaines, des marées).
+- La terre absorbe cette énergie, la convertie en chaleur, et doit renvoyer cette chaleur absorbée sous forme de rayonnement infrarouge dans l'espace.
+- Par rapport aux périodes précédentes, il y a relativement plus énergie reçu que perdue (que ce soit dans les sols, l'atmosphère ou les océans) et cette énergie se transforme, essentiellement, en chaleur. 
+
+
+> "Le  terme  «  radiatif  »  est  utilisé  du  fait  que  ces  facteurs modifient  l’équilibre  entre  le  rayonnement  solaire  entrant  et  les  émissions  de  rayonnements infrarouges sortant de l’atmosphère. [...] Le terme forçage est utilisé pour indiquer que l’équilibre radiatif de la Terre est en train d’être déstabilisé. " 
+
+:::
+
+
+### L'effet de serre  
+
+![Source: ademe.fr](image/effet_de_serre.webp)
+
+
+:::{.notes}
+
+- Pourquoi cette modification de l'équilibre energétique ? 
+- L'effet de serre est le processus par lequel les gaz contenus dans l'atmosphère retienne la chaleur émise par notre planète.
+
+- L'effet de serre est un phénomène **naturel**
+
+Source image: https://docs.datagir.ademe.fr
+
+::: 
+
+### Les gaz à effet de serre
+
+- Le gaz à effet de serre le plus important est la **vapeur d'eau** (55-60% de l'effet de serre).
+
+. . . 
+
+- L'effet de serre **anthropique** désigne l'effet de serre issue des activités humaines: 
+
+
+::: {.left_images}
+![](image/charbon_pollution.jpg)
+![](image/avion_trainée.jpg)
+![](image/central_thermique.jpg)
+![](image/agriculture.jpg)
+
+:::
+:::{.notes}
+
+Source images: Wikipedia 
+
+- Transport: train, avions
+- production énergie: Centrale thermique de Bełchatów, plus gros pollueur d'Europe.
+- Agriculture
+
+:::
+
+### Les gaz à effet de serre d'origine anthropique 
+
+. . . 
+
+:::::{.columns}
+::::{.column width=50%}
+1. Le **monoxyde de carbone**:
+    - Combustions;
+    - Changements d'affectation des sols.
+  
+2. Le **méthane**: 
+    - Elevage, culture;
+    - Extraction du gaz naturel.
+
+::::
+
+::::{.column width=50%}
+:::  {.fragment}
+3. Le **protoxyde d'azote**:
+    - Culture (usage d'engrais azoté).
+
+4. Les **gaz fluorés**:
+    - Réfrigération, climatisation;
+    - Gaz de propulsion (extincteurs, etc.).
+
+:::
+
+::::
+
+:::::
+
+:::{.notes}
+
+- CO2: 
+  - Combustion fossiles
+  - Changements d'affectations des sols: pas vraiment un gaz, mais une absence adsorption. Définir.
+- Méthane: 
+  - Elevage: rumination bovine qui crée de la fermentation entérique  + fumier.
+  - Rizière: bactéries à la surface de l'eau 
+protoxyde 
+- Protoxyde d'azote: 
+  - principalement liée à l'usage d'engrais azoté. L'azote joue un rôle essentiel dans le développement des plantes d'où l'usage d'engrais depuis la nuit des temps: fumier, lisier, purin avec une forte teneur en azote.
+  - Un sol azoté nécessitait de combiner sa culture avec de élevage et de la culture de légumineuse. 
+  - Naissance d'engrais de synthèse qui permettent de se débarrasser de ce problème, mais augmente l'émission de protoxyde d'azote. 
+  
+::: 
+
+### L'équivalent Co2
+
+**Comment savoir quel gaz contribue le plus ?**
+
+. . . 
+
+- Les gaz à effet de serre n'ont pas le même **impact**.
+
+- Les gaz à effet de serre n'ont pas la même **durée de vie**. 
+
+. . . 
+
+- L'équivalent $CO_2$ (noté $eCO_2$), mesure l'impact potentiel d'un gaz à effet de serre sur une durée de 100 ans en quantité de $CO_2$.
+
+. . . 
+
+- **Exemple:** Sur 100 ans, les effets sur le réchauffement de 1 tonne de $CH_4$ est équivalent $\approx$ à 20 tonnes de $CO_2$.
+
+
+:::{.notes}
+- Le $CH_4$ est beaucoup plus impactant que le $CO_2$: 20 fois plus
+- Les gaz fluorés sont BEAUCOUP plus impactant que le $CO_2$
+- Le $CO_2$ dure 100 ans, le $CH_4$ dure 20 ans
+::: 
+
+### Contribution des gaz à effet de serre anthropiques en 2019
+
+- Le monoxyde de carbone: **$\approx$ 75%**
+
+- Le méthane: **$\approx$ 18%**
+
+- Le protoxyde d'azote: **$\approx$ 4%**
+
+- Les gaz fluorés: **$\approx$ 2%**
+
+::: aside
+Source: IPCC Working Group III (2021)
+:::
+
+
+### Température et moyenne
+
+- L'accord de Paris fixe comme objectif de maintenir le réchauffemeent climatique en dessous de 2 $^\circ$C.
+
+. . . 
+
+- Le réchauffement actuel est de 1.1  $^\circ$C:
+  - Moyenne de l'année **2010-2020** ...
+  - ... par rapport à la moyenne des années **1850-1900**.
+  - Moyenne de la **terre** et des **océans** (sur terre, 1.6$^\circ$C).
+  
+. . . 
+  
+- En France, le réchauffement a été de 1,9$^\circ$C. 
+
+
+### Température et moyenne
+
+
+{{< video https://www.youtube.com/watch?v=3sqdyEpklFU
+    width="1600" height="550"
+    title=Anomalies de température entre 1880 et 2019 (source vidéo: NASA) >}}
+
+
+
+:::{.notes}
+La température normale (O degré) est définie sur la période 1951-1980.
+:::
+
+
+### Le cycle carbone
+
+![Source: wikipedia](image/cycle_du_carbone.png)
+
+
+:::{.notes}
+
+Seulement 50% du carbone émis par les sociétés humaines est rejeté dans l'atmosphère. 
+
+- Définir vulgairement atmosphère, la biosphère, l'hydrosphère et la lithosphère. 
+
+- On peut considérer la quantité de carbone dans atmosphère comme relativement constante. Ce qui change c'est la forme qu'occupe ce carbone. 
+
+- Il existe 4 grands réservoirs: atmosphère et l'hydrosphère contiennent du Co2 et du Ch4. La biosphère sous forme de biomasse (squelettes), et la lithosphère dans lequel le carbone est sous forme de roches et combustibles fossiles (pétrole, charbons, etc.).
+
+- Le carbone se délace entre ces réservoirs par différent processus: la respiration, la photosynthèse, sédimentation, dissolution et les actions humaines: déforestation, combustion. 
+
+Source image: Wikipedia 
+
+::: 
+
+
+### Les conséquences 
+
+- Augmentation des évènements extrêmes: 
+  - Vagues de chaleurs plus fortes et plus longues ;
+  - Précipitation plus fortes ;
+  - Sécheresse plus fortes.
+
+. . . 
+
+- Boucles de rétroaction: 
+  - Les feux de forêts ;
+  - La fonte des glaces ;
+  - Les changements d'affectation des sols. 
+  
+::: {.notes}
+
+- Exemple des feux de forêts au canada 2023:
+  - L'équivalent de 20% de la surface de la France qui a brûlé en 2023
+  - Les feux ont émis plus de $Co_2$ que l'économie canadienne en 1 an. 
+
+Source chiffre: Institut Copernic 
+
+
+- La fonte des glaces libèrent le CO2 et le méthane contenu dans la glace. 
+
+
+- Les incendies, les sécheresses réduisent les capacités des forets à absorber du CO2. 
+
+:::
+
+# Chapitre 2: L'économie et le climat
+
+
+
+### Qui réchauffe le climat ?
+
+```{r}
+#| label: "Emissionse Co2 depuis 1850 dans le monde "
+
+total_greenhouse_emission_2 %>%
+  mutate(n = `Annual nitrous oxide emissions in CO₂ equivalents` + 
+           `Annual methane emissions in CO₂ equivalents` +
+           `Annual CO₂ emissions`) %>% 
+  filter(entity == "World") %>%
+  ggplot(aes(x = year,
+             y = n/1e9)) +
+  geom_line(color = "darkblue", group = 1 ) +
+  geom_point(color = "darkblue", group = 1) +
+  labs(title = "Emissions de gaz à effet de serre par an",
+      subtitle = "Milliards de tonnes d'eCo2",
+       y = "", 
+       x = "",
+       caption = "Données: Our World in Data") + 
+  theme_minimal(base_size = 15)
+```
+
+:::{.notes}
+
+- Commenter le covid
+
+:::
+
+### Emissions en 2019 
+
+```{r}
+#| label: "Emissions d'eCo2 dans le monde: top emetteurs"
+
+total_greenhouse_emission %>%
+  filter(date == 2019) %>%
+  slice_max(EN.ATM.GHGT.KT.CE, n = 10) %>%
+  bind_rows(., total_greenhouse_emission %>% 
+              filter(date == 2019, country == "France")) %>%
+  mutate(country = reorder(country, EN.ATM.GHGT.KT.CE), 
+         is_france = country == "France") %>%  # Ajout d'une colonne pour identifier la France
+  ggplot(aes(x = country, y = EN.ATM.GHGT.KT.CE / 1000, fill = is_france)) +
+  geom_col(show.legend = FALSE, alpha = 0.8) +
+  scale_fill_manual(values = c("TRUE" = "red", "FALSE" = "lightblue")) +  # Utilisation de couleurs manuelles
+  coord_flip() +
+  geom_text(aes(label = round(EN.ATM.GHGT.KT.CE / 1000, 1)), hjust = -0.1) +
+  labs(
+    title = "Emissions en 2019",
+    subtitle = "Millions de tonnes d'eCo2",
+    y = "",
+    x = "",
+    caption = "Données: World Bank"
+  ) +
+  theme_minimal(base_size = 15) +
+  scale_y_continuous(expand = expansion(add = c(0, 2000)))
+```
+
+
+:::{.notes}
+Chine émet plus d'1/4 des émissions mondiales en 2019
+:::
+
+
+
+### Emissions en 2019 par habitant 
+
+```{r}
+#| label: "Emissions eCo2 dans le monde: + gros emetteurs mais par habitant"
+data_filtered <- total_greenhouse_emission_capita %>%
+  filter(date == 2019,
+         str_detect(country, "^(France|China|United States|India|Russian Federation|Japan|Brazil|Indonesia|Germany|Canada|Iran.*)$")) %>%
+  mutate(country = reorder(country, EN.ATM.CO2E.PC), 
+         is_france = country == "France")
+
+# Crée le graphique
+ggplot(data_filtered, aes(x = country, y = EN.ATM.CO2E.PC, fill = is_france)) +
+  geom_col(show.legend = FALSE, aes(fill = is_france), alpha = 0.8) +
+  scale_fill_manual(values = c("TRUE" = "red", "FALSE" = "lightblue")) +  # Colore la France en rouge
+  coord_flip() + 
+  geom_text(aes(label = round(EN.ATM.CO2E.PC, 1)), hjust = -0.3) +
+  labs(title = "Emissions par habitant en 2019",
+       subtitle = "Millions de tonnes d'eCo2",
+       y = "", 
+       x = "",
+       caption = "Données: World Bank") +
+  theme_minimal(base_size = 15)
+```
+
+
+### Emissions en 2019 par habitant 
+
+. . .
+
+```{r}
+#| label: "Emissions eCo2 dans le monde: top emetteurs par habitant"
+
+data_filtered <- total_greenhouse_emission_capita %>%
+  filter(date == 2019) %>%
+  slice_max(EN.ATM.CO2E.PC, n = 10) %>%
+  bind_rows(., total_greenhouse_emission_capita %>% 
+              filter(date == 2019, country == "France")) %>%
+  mutate(country = reorder(country, EN.ATM.CO2E.PC), 
+         is_france = country == "France")
+
+# Crée le graphique
+ggplot(data_filtered, aes(x = country, y = EN.ATM.CO2E.PC, fill = is_france)) +
+  geom_col(show.legend = FALSE, aes(fill = is_france), alpha = 0.8) +
+  scale_fill_manual(values = c("TRUE" = "red", "FALSE" = "lightblue")) +  # Colore la France en rouge
+  coord_flip() + 
+  geom_text(aes(label = round(EN.ATM.CO2E.PC, 1)), hjust = -0.3) +
+  labs(title = "Emissions par habitant en 2019",
+       subtitle = "Millions de tonnes d'eCo2",
+       y = "", 
+       x = "",
+       caption = "Données: World Bank") +
+  theme_minimal(base_size = 15)
+```
+
+
+### Emission historique 
+
+```{r}
+#| label: "Emission historique"
+
+total_greenhouse_emission_2 %>%
+  mutate(n = `Annual nitrous oxide emissions in CO₂ equivalents` + 
+           `Annual methane emissions in CO₂ equivalents` +
+           `Annual CO₂ emissions`) %>%
+  group_by(entity) %>%
+  mutate(cum_n = cumsum(n)) %>%
+  filter(str_detect(entity, "^(United States|China|Europe)$")) %>%
+    ggplot(aes(
+    x = year,
+    y = cum_n/1e9,
+    group = entity, 
+    color = entity), 
+    linewidth = 2) + 
+  geom_line() +
+scale_color_npg(name = "") +
+labs(title = "Emissions historiques depuis 1850",
+     subtitle = "Milliards de tonnes d'eCo2",
+       y = "", 
+       x = "",
+       caption = "Données: Our World in Data") + 
+  theme_minimal(base_size = 15)
+```
+
+<!-- ### Emission historique  -->
+
+<!-- ```{r} -->
+<!-- #| label: "Emission historique lines par an" -->
+
+<!-- total_greenhouse_emission_2 %>% -->
+<!--   mutate(n = `Annual nitrous oxide emissions in CO₂ equivalents` +  -->
+<!--            `Annual methane emissions in CO₂ equivalents` + -->
+<!--            `Annual CO₂ emissions`) %>% -->
+<!--   filter(str_detect(entity, "^(Europe|North America|South America|Asia|Oceania|Africa|India|Russia|Iran)$")) %>% -->
+<!--     ggplot(aes( -->
+<!--     x = year, -->
+<!--     y = n/1e9, -->
+<!--     group = entity,  -->
+<!--     color = entity),  -->
+<!--     linewidth = 2) +  -->
+<!--   geom_line() + -->
+<!-- scale_color_npg(name = "") + -->
+<!-- labs(title = "Emissions par an de gaz à effet de serre depuis 1850 (Milliards de tonnes d'eCo2)", -->
+<!--        y = "",  -->
+<!--        x = "", -->
+<!--        caption = "Données: Our World in Data") +  -->
+<!--   theme_minimal(base_size = 15) -->
+<!-- ```  -->
+
+### Emission historique 
+
+```{r}
+#| label: "Emission historique lines cumulée"
+
+total_greenhouse_emission_2 %>%
+  mutate(n = `Annual nitrous oxide emissions in CO₂ equivalents` + 
+           `Annual methane emissions in CO₂ equivalents` +
+           `Annual CO₂ emissions`) %>%
+  group_by(entity) %>%
+  mutate(cum_n = cumsum(n)) %>%
+  filter(str_detect(entity, "^(Europe|North America|South America|Asia|Oceania|Africa)$")) %>%
+    ggplot(aes(
+    x = year,
+    y = cum_n/1e9,
+    group = entity, 
+    color = entity), 
+    linewidth = 2) + 
+  geom_line() +
+scale_color_npg(name = "") +
+labs(title = "Emissions historiques depuis 1850",
+     subtitle = "Milliards de tonnes d'eCo2",
+       y = "", 
+       x = "",
+       caption = "Données: Our World in Data") + 
+  theme_minimal(base_size = 15)
+```
+
+
+### Les émissions importées
+
+- Si un pays **produit peu de biens**, il peut en revanche en **consommer beaucoup** (approche par la consommation).
+
+. . . 
+
+- Il ne suffit pas de regarder les émissions sur un territoire mais également les émissions issues de biens *importés ailleurs*. 
+
+. . . 
+
+- Les **émissions importées** d'un pays sont les émissions de gaz à effet de serre associées aux importations de biens consommés en France (consommation finale ou consommation intermédiaire). 
+
+
+
+### Les émissions importées par habitant 
+
+![Source: Our World in Data](image/imported-or-exported-co-emissions-per-capita.svg)
+
+::: notes
+
+Bien insister sur le fait que la moitié de l'empreinte carbonne d'un français est issue de la consommation de bien importés. 
+
+::: 
+
+### Emissions en France 
+
+```{r}
+#| label: "Emissions eCo2 en France"
+
+total_greenhouse_emission %>%
+  filter(country == "France" & date > 1990) %>%
+  ggplot(aes(x = date,
+             y = EN.ATM.GHGT.KT.CE/1000)) +
+  geom_line(color = "lightblue") +
+  geom_point(color = "blue") +
+  geom_ribbon(aes(ymin = 350, ymax = EN.ATM.GHGT.KT.CE/1000), fill = "lightblue", alpha = 0.3) +
+  labs(title = "Emissions de gaz à effet de serre (MteCo2)",
+       y = "", 
+       x = "",
+       caption = "Données: World Bank") + 
+  theme_minimal(base_size = 15)
+
+```
+
+
+### Emissions en France
+
+```{r}
+#| label: "Emissions eCo2 en France avec objectif 2030"
+
+total_greenhouse_emission %>%
+  filter(country == "France" & date > 1990) %>%
+  ggplot(aes(x = date,
+             y = EN.ATM.GHGT.KT.CE/1000)) +
+  geom_line(color = "lightblue") +
+  geom_point(color = "darkblue") +
+  geom_ribbon(aes(ymin = 200, ymax = EN.ATM.GHGT.KT.CE/1000), fill = "lightblue", alpha = 0.3) +
+  geom_hline(yintercept = 270, linetype = "dashed", color = "red") +
+  annotate("text", x = 2005, y = 270, label = "objectif 2030: 270 Mt ECo2", vjust = -1, color = "red") +
+  labs(title = "Emissions de gaz à effet de serre (MteCo2)",
+       y = "", 
+       x = "",
+       caption = "Données: World Bank") + 
+  theme_minimal(base_size = 15)
+
+```
+
+
+### Emissions par secteur: quelle méthode de calcul ?
+
+- Si je chauffe mon appartement à électricité, dois-je compter les émissions dans le secteur du bâtiment (consommateur) ou dans le secteur de la production d'énergie (producteur) ? 
+
+. . . 
+
+- Au niveau global, on compte les émissions dans le secteur qui les produit: 
+  - si vous utilisez de l'électricité pour vous chauffez, l'émetteur sera l'entreprise qui produit cette éléctricité;
+  - si vous utilisez du gaz pour vous chauffez, vous êtes l’émetteur. 
+
+
+<!-- ### Par secteur  -->
+
+<!-- ```{r} -->
+
+<!-- #| label: "emission by sector" -->
+
+<!-- emission_sector %>% -->
+<!--   filter(entity == "World", -->
+<!--          year == 2019) %>% -->
+<!--   pivot_longer(cols = c(4:14)) %>% -->
+<!--   mutate(name = str_remove_all(name, "Greenhouse gas emissions from"), -->
+<!--          name = str_remove_all(name, "of greenhouse gases from energy production"), -->
+<!--          name = reorder(name, value)) %>%  -->
+<!--   ggplot(aes( -->
+<!--     x = name, -->
+<!--     y = value/1e9)) +  -->
+<!--   geom_col(show.legend = FALSE, -->
+<!--                fill = "darkblue", alpha =  0.3) + -->
+<!--   scale_fill_identity() + -->
+<!--   coord_flip() +  -->
+<!--   geom_text(aes(label = round(value/1e9)), hjust = -0.3) +  -->
+<!--   labs(title = "Emissions de gaz à effet de serre par secteur dans le monde en 2019",  -->
+<!--        subtitle = "Milliards de tonnes d'eCo2", -->
+<!--        y = "",  -->
+<!--        x = "", -->
+<!--        caption = "Données: Our World in Data") +  -->
+<!--   theme_minimal(base_size = 15) -->
+
+
+<!-- ``` -->
+
+<!-- :::{.notes} -->
+<!-- - éléctricité n'est pas si propre dans le monde  -->
+<!-- - fugitive emissions: émission de gaz issue de l’extraction de ressources fossiles -->
+<!-- - waste = déchets  -->
+<!-- - noter que la décomposition par secteur peut être fait de manières différentes: des secteurs s'entrecoupent avec celui de la production d’énergie par exemple  -->
+<!-- -  -->
+<!-- ::: -->
+
+
+### Les activités productives les plus émettrices en France (producteurs) 
+
+![Source: Haut conseil pour le climat, 2023](image/infofraphie_HPC.jpg)
+
+
+
+### Transport (32%) {.nostretch}
+
+L'essentiel des émissions de transport sont du CO₂ issues de moteurs à carburation:
+
+- Véhicules particuliers: 51%
+
+- Camions et utilitaire: 41%
+
+- Aérien: 4%
+
+- Autres: 4%
+
+::: {.left_images}
+
+![](image/avion_trainée.jpg){width=230px height=180px}
+![](image/pot_échappement.jpeg){width=230px height=180px}
+![](image/train.jpg){width=230px height=180px}
+![](image/bateau.jpg){width=230px height=180px}
+:::
+
+
+:::{.notes}
+Les données sectorielles utilisées par le HCC sont issues du rapport SECTEN du CITEPA. On y trouve notamment les conventions comptables utilisées pour le découpage du bilan carbone global de la France en secteurs et sous-secteurs utilisées dans le reste de ces slides. 
+
+
+- Note: Les émissions de carbones ne sont pas compté ici: 
+  - les transports aériens internationaux 
+  - les transports marins internationaux 
+
+
+- Transport = les véhicules particuliers et à but commercial (transport de marchandise)
+- L’essentiel des émissions d’eCo2 sont du Co2 issues de moteurs à carburation
+
+- **Véhicules particuliers**: 
+  - la voiture reste le principale moyen de transport des actifs pour se rendre sur leur travail (source: [insee](https://www.insee.fr/fr/statistiques/5013868)) ; 
+  - La voiture reste le mode de transport le plus utilisé quelque soit la distance parcourue (74% des actifs): la moitié des actifs qui habitent à moins d'1km de leur domicile y vont en voiture. Remplacer quand c'est possible par des modes de transport "plus doux" (à pied, vélo, transports en commun) ;
+  - Mentionner le poids des véhicules qui augmentent ;
+  - Taxe carbone: application sans filtre sur des populations déjà en tension ;
+  - Vitesse régulée et construction d'autoroute: "gagner du temps" est un argument fallacieux, le temps de trajet restent constant dans le temps ([source](https://www.lemonde.fr/idees/article/2024/02/08/on-ne-peut-plus-valoriser-les-transports-en-s-appuyant-sur-des-theories-heritees-des-trente-glorieuses_6215370_3232.html)). 
+  - L'électrique est une solution (impact carbone élevée à la construction mais moins d'émissions d'usage)
+
+- Camions et utilitaires: remplacement du parc immobilier par de l'électrique ;
+
+- **Avions**: 
+  - % faible, 20% des français n'ont jamais prix l'avion, très rare de le prendre, sauf class sup (20% de splus riches font la moitié des vols).
+  - MAIS (plus fort si on compte les vols internationaux - 14%), 
+  - MAIS l'émission d'un trajet par personne EST BCP plus élevé 
+  - Uniquement les trajets dans le territoire (métropolitain et DOM-TOM), faible % car moins de demande, mais facilement substituable par le train en France ([source](https://bonpote.com/le-match-co2-train-vs-avion/))
+    - En France: un Paris Toulouse en avion emet 79 kg de Co2 / personne, le train en emet 1.5kg
+    - Le train est beaucoup plus performant par ce que sa source d’énergie est plus propre (en France), moins de frottement (moins d'energie dépensé par km), et sa capacité d’accueil est bcp plus développe (350 à 1250  passagers) pour 200 pour un A320 long courrier. 
+  - A noter que si les vols internationaux sont moins nombreux, le marché croit énormément.
+  - Un Paris - New York émet 1 tonne (sans les effets des traînées et la vapeur d'eau). C'est l'équivalent de la consommation de la voiture par un français en 1 an. 
+
+- Autres: évaporation de l'essence, usage de gaz fluorés dans le circuit de climatisation. 
+
+:::
+
+### Agriculture (19%) 
+
+
+- Trois postes principaux: 
+  - Elevage (Méthane): 60%
+  - Culture (Protoxyde d'azothe): 27%
+  - Utilisation énergie (Co2): 13%
+
+
+
+:::{.notes}
+
+Une première idée reçue qu'il faut casser tout de suite: les émissions de transport sont un pourcentage très faible des émissions d'eCo2. On pense tracteurs et co2 alors que l'essentiel de la contribution de l'agriculture au réchauffement climatique est liée à la rumination des espèces élevages et notamment des bovins. 
+
+- Emissions directes liées aux élevages ;
+  - La quasi totalité des émissions est liées à deux secteurs: changement d'affectation des sols (on en reparle plus tard) et émission directe par rumination et les émission des engrais azotés ;
+  - L'alimentation des animaux, la transformation des produits agricoles. Même le reste de la chaine de production liée à l'industrie agroalimentaire est plus faible: le transport, la distribution et le conditionnement représente une partie faible des émissions totales des aliments ;
+  - Une solution végétale est meilleure qu'une solution locale animale ; 
+
+- Emissions indirectes liées aux engins moteurs utilisées
+
+:::
+
+### Emissions des aliments proteinés (viandes)
+
+![Source: [Bonpote.com](https://bonpote.com/les-infographies-bon-pote/)](image/emission_elevage.png)
+
+
+::: notes 
+
+- Parmi les protéines animales, il vaut mieux privilégiez le poulet et les œufs 
+- Le poisson n'est pas forcement moins émetteur que la viande, très forte variabilité entre les espèces. Privilégiez les poissons sauvages qui ne sont pas sous tension: saumons, truites, sardines, thon, les harengs, etc. Évitez crevette, homard. 
+
+::: 
+
+
+### Emissions des aliments proteinés (poissons)
+
+
+![Source: [Bonpote.com](https://bonpote.com/les-infographies-bon-pote/)](image/poisson.png)
+
+
+### Culture et engrais azoté 
+:::: {.columns}
+:::{.column width=70%}
+
+- L’azote est un élément essentiel pour la croissance des végétaux ;
+- Avant le 20ème siècle, on preserver l'azote dans les sols via des rotations des cultures, l'usage de fumiers, etc. 
+
+:::{.fragment}
+
+- Invention de **l'engrais azoté** (1908);  
+- In fine, l'azote contenu dans l'air ($N_2$) est transformé en gaz à effet de serre ($N_{2}0$).
+::: 
+:::
+
+
+:::{.column width=30%} 
+<center>
+![Le chimiste Allemand Friz Haber, prix nobel de chimie en 1918](image/fritz_haber.png)
+</center>
+:::
+:::: 
+
+
+::: notes
+- Emissions directes liées aux cultures (27% des émissions dans l'agriculture):
+  - Azote (N pour Nitrogen) ;
+  - Légumineuse: Le soja, la fèverole, la lentille, la fève, le haricot, le pois et le pois chiche ;
+  - Invention de la synthèse de l'amoniac par Friz Haber en 1908: procédé qui permet in fine de prendre de l'azote dans l'air et l'intégrer dans les sols ;
+  - Engrais azotés: la faune, et les végétaux que nous mangeons ont besoin de minéraux pour se développer: le carbone évidemment (avec la photosynthèse), mais aussi l'oxigène, le calcium, le magnésium, le soufre, etc. Les plus important, qui sont les plus dur à trouver pour les plantes, sont le potassium, le phosphore, et surtout l'azote. 
+  
+- Autre impact environnementales de l'agriculture: produits phytosanitaires (pesticides), toxiques pour les écosystèmes ;  
+- Une idée reçue: les agricultures biologiques n'utilisent pas de pesticides. L'agriculture biologique utilise des pesticides, mais ils ont l'interdiction d'utiliser des pesticides de synthèse, c'est à dire fabriquer et synthétiser par l'homme (exemple de pesticide naturel: spinosad). 
+
+::: 
+
+### Au delà de l'eCo2
+
+![Marée verte dans le finistère](image/marée_verte.jpg)
+
+::: {.notes}
+Source image: Wikipedia 
+
+- Les marées vertes sont causés par l'importance du nitrate dans les fleuves et rivières. 
+- Ce nitrate provient principalement de l'agriculture et de l'usage d'engrais azoté. 
+
+:::
+
+### Industrie et batiment 
+
+::::{.columns}
+:::{.column width=50%}
+
+- Industrie (18%)
+  - Chimie 
+  - Minéraux 
+  - Métallurgie 
+  - Agroalimentaire 
+  - Equipement 
+  - Papier, carton  
+
+:::
+
+:::{.column width=50%}
+- Bâtiment (16%):
+  - Particulier et secteur tertiaire 
+  - Chauffage non électrique, réfrigération, etc.
+::: 
+::::
+
+::: {.notes}
+- Industrie: 
+  - Chimie, Minéraux et métallurgie: la chimie, la fabrication des minéraux (ciment, chaux, le verre, les tuiles, les briques) et des métaux nécessitent des températures très élevées (haut fourneaux); 
+  - Le reste regroupe principalement les engins et machines utilisés dans l'industrie ou le BTP. 
+  - Note agroalimentaire: non pris en compte ici l'agriculture et le transport.
+    - raffinerie du sucre ; 
+    - fabrication du pain. 
+  
+  
+- Bâtiment: 
+  - particulier + secteur tertiaire 
+  - N'est pas inclue: les émissions liées aux matériaux (comptabilité dans l'industrie) ni ceux liées à électricité (secteur de l'énergie) ;
+  - Essentiellement les combustions énergie fossile des la maison (chaudière, chauffe eau, four et plaque à gaz) + enfin domestique (tondeuse) + fuites de gaz fluorés (frigo) + feux d'artifices + tabac. 
+
+::: 
+
+
+### Energie (11%)
+
+- Production d'électricité ;
+- Extraction et transformation des énergies fossiles (affinage du pétrole, etc.) ;
+- Valorisation énergétique des déchets. 
+
+::: {.notes}
+
+Note: le secteur ne contient pas la combustion énergie fossile par le secteur du transport (carburation), résidentiel-tertiaire (chauffage) et par l'industrie. 
+
+- Production électricité: production centralisé électricité (central à gaz et à charbon, encore quelques une en France)
+- Raffinage du pétrole nécessite de chauffer le pétrole à haute température, produisant du carbone ;
+- La valorisation énergétique des déchets corresponds à la production d'énergie en utilisant des déchets qui n'ont pas pu être recyclé (incinération, production de gaz, etc.). 
+
+- Production électricité: en France très propre en terme d'émission de gaz à effet de serre, nucléaire et renouvelable (barrage hydroélectrique, éoliennes, panneaux voltaique). Ce n'est pas du tout le cas dans le reste du monde. La production électricité est le principal secteur économique qui produit du gaz à effet de serre dans le monde, cela représente 40% des émissions mondiales (centrales à charbon et central à gaz) ;
+:::
+
+### Déchets (4%)
+
+- Stockage des déchets (agriculture, centre d'enfouissement);
+- Incinération des déchets (particuliers et industriels);
+- Eaux usés. 
+
+:::{.notes}
+
+- Fermentation anaérobique ;  
+- Discuter la place des déchets dans l'empreinte carbone globale.
+
+:::
+
+### Affectations des sols (-4%)
+
+- (De)-forestations; 
+- Terres cultivées;
+- Zones artificialisées. 
+
+### Calculez l'empreinte carbonne d'une entreprise individuelle 
+
+Définir le périmètre d'activité de l'entreprise: 
+
+- Scope 1: émission directe ;
+- Scope 2: émissions indirectes liée à l'énergie ;
+- Scope 3: autres émissions indirectes.
+
+. . . 
+
+- [Empreinte carbone pour particulier](https://agirpourlatransition.ademe.fr/particuliers/conso/conso-responsable/connaissez-vous-votre-empreinte-climat).
+- [Empreinte carbone pour un produit](https://base-empreinte.ademe.fr/donnees/jeu-donnees).
+
+::: notes 
+
+source: wikipedia 
+
+- scope 1: toutes les émissions directement émises par le processus de production: émissions directes durant l'usage et la transformation de matières premières, flotte de véhicule de l'entreprise, la culture et l'elevage, etc.
+
+- scope 2: émissions par l'usage d'énergie (ce n'est pas le processus de production en lui même mais l'usage d'energie indispensable au bon fonctionnement de l'entreprise)
+
+- scope 3: toutes les autres types d'émissions en amont ou en aval: achats de produit et services, dépenses d'armortissement, déplacements professionnels, transports de marchandise en amont, investissements (actif financiers), gestion des déchets. 
+
+> "Ces indicateurs, en particulier le scope 3, permettent de prendre en compte les émissions sur l'ensemble de la chaîne de valeur du produit et pas seulement celles liées au processus de production"
+
+> Mais plus le scope est large, plus il est difficile à estimer et plus il peut créer des doublons avec le calcul de l'empreinte carbonne d'une autre entreprise. 
+
+::: 
+
+# Chapitre 3: Politique économique de la crise climatique 
+
+## Les solutions discutées par le GIEC 
+
+### Le budget carbone 
+
+> Le **budget carbone** represente la limite supérieure des émissions de gaz à effet de serre qui permetterait de rester en dessous d'une température moyenne mondiale donnée. 
+
+- L'accord de Paris de 2015 vise à limiter l'élévation des températures à 2 degré par rapport au niveau préindustriel. (1850).
+
+- La France s'est fixé comme objectif une neutralité carbone en 2050 avec des émissions de 80 millions de tonnes d'eCo2. 
+
+
+### {background-color="white" background-iframe="https://carbonbrief.github.io/CO2-age-group/" background-interactive=True}
+
+
+### Le budget carbone (Monde)
+
+
+![](image/carbon_budget.webp){width=900 height=500}
+
+::: aside
+Source: Peters Glen
+:::
+
+### Sobriété 
+
+> "Les politiques de sobriété sont un ensemble de mesures et de pratiques quotidiennes qui permettent d'éviter la demande d'énergie, de matériaux, de terres et d'eau tout en assurant le bien-être de tous dans les limites de la planète" (GIEC, Working Group III)
+
+. . . 
+
+- D'un point de vu strictement économique, la sobriété signifie une baisse de la demande des produits carbonés ;
+  - transport, energie, régime alimentaire.  
+  
+
+### Les comportements individuels, quel impact ? 
+
+
+- Les comportements individuels pourraient réduire entre 25% et 45% des émissions ;
+
+. . . 
+
+- Ces chiffres ont leur limites: les comportements individuels et les actions collectives sont indissociables: 
+  - l'offre et la demande s'influence mutuellement ; 
+  - changement de préférences des consommateurs ;
+  - progrès technique ;
+
+
+::: notes
+- Source sur le % associé aux comportements individuels: https://www.carbone4.com/publication-faire-sa-part
+:::
+
+
+
+### La solution: le progrès technique ?
+
+. . .  
+
+![](image/technologie_GIEC.png){width=900 height=500}
+
+::: aside
+Source: IPPC, Working group III.
+:::
+
+::: notes 
+
+- Les start-ups et la French-Tech vont-elles nous sauver ? 
+
+
+:::
+
+### La solution: le progrès technique ?
+
+- Les technologies d'atténuation des émissions ne sont pas équivalentes en terme de coût et d'impact:  
+
+![](image/IPCC_WG3_options_available.png)
+
+::: aside
+Source: IPPC, Working group III.
+:::
+
+
+::: notes 
+- Interprétation: (y): différentes technologies de réductions: 
+  - vent, 
+  - solaire,
+  - bioelectricité, biomasse ou bioénerie: production d’énergie via des matière organiques: combustion de déchets, ou fermentation: l’éthanol et le biogazole
+  - hydropower: barrage éléctrique, utilisation des marées
+  - thermale energy: utiliser l'energie contenu dans la terre pour créer de la vapeur qui à son tour créer de électricité. A 3000 m sous la terre, la distance, entre la gare et l'université, la température est de 3000 degré. Couteux, encombrant. 
+  - Carbone capture: technologie peu viable, très couteux 
+  - Bioelectricity with CCS (BECCS)
+  - Coal mining, Oil and gaz: Extraction du charbon. 10% des émissions de méthane proviennent de l'extraction de charbon dans le monde. Amélioration par la gestion des fuites, et potentiellement la capture. 
+  
+  
+- Le potentiel à la réduction des émissions carbones
+- Expliquer l'intervalle de confiance 
+
+  
+:::
+
+  
+## L'analyse économique de la crise climatique 
+
+### Inégalités économiques et climat 
+
+
+![Source: Antonin Pottier et al. (2020)](image/pottier_emission_menages.png)
+
+
+:::{.notes}
+- Prendre ces données avec précautions (c.f. [cette note de l'insee](https://blog.insee.fr/consommation-vs-empreinte-carbone-calcul-piegeux/)) 
+
+- Discuter de la pertinence des actions individuelles vs politiques économiques ;
+- Discuter des marges de manœuvres différenciées selon les échelles de revenus et comment cette dimension est essentielle dans l'élaboration de politique environnemental: mouvement agricole 2024, mouvement des gilets jaunes (2018-2019).
+:::
+
+### Marché et efficacité
+
+- Les marchés est une institution organisant l'échange entre les producteurs des biens et services et les consommateurs.
+
+- Le prix est un **signal** qui permet une coordination décentralisée entre producteurs et consommateurs. 
+  
+- Sous certaines conditions, cette allocation des ressources est considérée comme efficace. 
+
+::: {.notes}
+- Si un bien est fortement demandé, son prix va augmenter incitant les entreprises à augmenter leur production. 
+- Si un bien est faiblement demandé, son prix aura tendance à diminuer incitant les entreprises à diminuer leur production. 
+::: 
+
+### Les défaillances de marchés
+
+- Les défaillances de marché désignent des situations où l'allocation des ressources par le marché est inadéquate ou impossible. 
+
+- Il existe plusieurs situations de défaillances de marché: 
+  - Les asymétries d'information ;
+  - Les externalités ; 
+  - Les bien publics et bien communs. 
+
+  
+### Les asymétries d'information {.nostretch}
+
+Il existe deux asymétries d'information:  
+  
+- 1. **La sélection adverse** ou asymétrie pré-contractuel: 
+
+<center>
+![](image/akerlof_lemon_original.png) 
+</center>
+
+::: aside
+Source image: https://easynomics.fr
+:::
+
+::: notes
+
+Source image: https://easynomics.fr
+
+
+Par exemple, la théorie suppose une symétrie d'information entre les agents économiques. Dans la réalité, toute transaction implique une asymétrie d'information. Il s'agit d'une situation où un agent possède plus d'information que les autres durant une transaction. 
+
+Prenons un exemple classique: le marché des voitures. 
+
+Imaginons que le marché du neuf soit dans une situation de parfaite symétrie de l'information. Les constructeurs automobiles sont parfaitement transparent sur les caractéristiques de leurs voitures et leur qualité. Sur le marché du neuf, il y une situation une symétrie parfaite. Le consommateur peut se renseigner sur chaque véhicule et le système de prix reflète les caractéristiques de chaque voiture. 
+
+Faisons un tour sur le marché de l'occasion maintenant. Il y a un acheteur et deux vendeurs d'une voiture au même caractéristique. Le vendeur n'a aucune information sur obsolescence des voitures qui y sont vendus. Sur ce marché, un vendeur vous propose une voitures d'occasion de très bonne qualité, et l'autre de très mauvaise qualité. 
+
+  - Voitures de bonne qualité: 10 000 euros 
+  - Voitures de mauvaise qualité: 5 000 euros
+  - Prix proposé par l'acheteur: ?
+
+En tant que consommateur vous n'avez pas la possibilité de distinguer la qualité de ces deux voitures, elles étaient identiques sur le marché du neuf mais elles ont été utilisées de manières différentes par la suite. Peut être qu'une voiture à une boite de vitesse défaillante car elle a subit le mauvais traitement de son ancien usager. Et vous voyez tout de suite le problème: les deux voitures seront vendus a priori au même prix d'occasion. Nous sommes dans une situation de défaillance de marché. 
+
+Il y a une asymétrie d'information entre le vendeur et le consommateur. 
+
+- Le vendeur de la voiture de bonne qualité voudrait la vendre 10 000 euros. 
+
+- Le vendeur de la voiture de mauvaise qualité peut proposer également un prix de 10 000 euros.
+
+- Mais comme le consommateur est dans l'incertitude, il ne voudra pas l'acheter 10 000 euros car il a une chance sur deux d'acheter une voiture de mauvaise qualité. Il proposera un prix plus faible. 
+
+
+Le mécanisme de prix ne joue pas son rôle, il ne coordonne pas correctement l'offre et la demande. On a bien une inefficacité du marché. On parle de sélection adverse. 
+
+Afin atténuer ce mécanisme, vous voulez justement faire en sorte de réduire l'asymétrie d'information. Les plateformes de produits re-conditionnés mettent justement en place des séries de mécanismes pour réduire cette asymétrie d'information (contrôle des revendeurs, avis clients, garantie, assurance, etc.). 
+
+On parle de sélection adverse (asymétrie avant la transaction, contrat). Les individus ne sélectionnent pas correctement les bons produits. 
+:::
+
+### Les asymétries d'information
+
+2. **L'aléa moral** ou asymétrie post-contractuel.
+
+<center>
+![](image/alea_moral_dall-e.png) 
+</center>
+
+
+::: notes
+
+
+- L’aléa moral. Imaginons que vous avez trouvé votre bonheur et vous avez acheté une voiture. Vous allez chez l'assureur et une nouvelle situation d'asymétrie d'information ce produit. Vous lui demandez de vous assurez contre les dommages que vous pouvez causé à votre voiture et à celles des autres mais l'assureur ne vous connait pas et ne sait pas dans quelle mesure vous adoptez des comportements risqués en voiture. Surtout, s'il vous assure, vous allez potentiellement vous sentir très confiant puisque l'assurance prends en charge les frais que vous pouvez causer. L'assurance se protège de ce type de comportement en ajoutant des primes. Elle sait que les jeunes conducteurs ont en moyenne plus souvent des accidents, et elle fait payer aux jeunes conducteurs. 
+
+- Et vous avez de nouveau une **défaillance de marché**: si vous êtes jeunes conducteurs mais très prudent vous payez trop cher et au contraire si vous êtes un casse-cou vous ne payez pas assez cher. 
+
+On parle cette fois-ci d'aléa moral (l'asymétrie a lieu après la transaction, le contrat)
+::: 
+
+### Les externalités
+
+![La navette challenger](image/challenger_navette.jpg)
+
+
+::: notes
+
+- défaillances de la navette challenger produit un effet négatif qui est correctement intégré dans la capitalisation boursière des entreprises en causes, influence leur réputation, leur prix de ventes, leurs fournisseurs, etc.
+- Co2 émis par la navette n'est pas pris en compte 
+
+::: 
+
+
+### Les externalités 
+
+
+> Une externalité désigne une situation où un agent produit un effet sur d'autres agents économiques sans compensation monétaire.
+
+. . . 
+ 
+- L'effet peut être **positif** ou **négatif** ;
+
+. . . 
+
+- L'agent peut être un **producteur** ou un **consommateur** ;
+
+. . . 
+
+- Défaillances de marchés car le coût (ou bénéfice) privé $\neq$ coût (bénéfice) social.
+
+::: notes 
+Exemples: pollution, vaccin, apiculteur, etc. 
+::: 
+
+### Internaliser les externalités 
+
+
+> Internaliser une externalité signifie créer une compensation monétaire afin d'inciter les agents à réduire (augmenter) l'externalité négative (positive).
+
+
+- Intervention de la puissance publique:
+  - Normes ;
+  - Taxation ;
+  - Subvention.
+
+::: notes
+- Norme euro sur les émissions des véhicules, 
+- Taxation du tabac (à la fois pour des raisons de santé, et d'externalités négatives). 
+- Discuter la taxe carbone et sa difficulté d'implémentation avec les gilets jaunes 
+- Subvention: crédit d'impôt pour la transition énergétique ou MaPrimeRénov (coût privé de la rénovation élevé mais gain social important)
+::: 
+
+
+### Un exemple théorique
+
+```{r}
+#| label: "exemple of coase (1960)"
+
+# Création du dataframe
+donnees <- tribble(
+  ~`Nombre de vaches`, ~`Dommage cultivateur`, ~`Gain nets éleveur`, ~`Bénéfice net Société`,
+  0, "0 (optimum)", "0", "0",
+  1, "3", "10", "7",
+  2, "5", "18", "13 (optimum)",
+  3, "10", "20", "10",
+  4, "16", "21 (optimum)", "5"
+)
+
+# Utilisation de kable et kableExtra pour styliser le tableau
+kable(donnees, "html", booktabs = TRUE, caption = "") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = F, font_size = 35) %>%
+  column_spec(1, bold = T, border_right = TRUE) 
+
+
+```
+
+### Un exemple théorique
+
+```{r}
+#| label: "exemple of coase (1960) 2"
+
+# Création du dataframe
+donnees <- tribble(
+  ~`Nombre de vaches`, ~`Dommage cultivateur`, ~`Gain nets éleveur`, ~`Bénéfice net Société`,
+  0, "0 (optimum)", "0", "0",
+  1, "3", "10", "7",
+  2, "5", "18", "13 (optimum)",
+  3, "10", "20", "10",
+  4, "16", "21 (optimum)", "5"
+)
+
+# Utilisation de kable et kableExtra pour styliser le tableau
+kable(donnees, "html", booktabs = TRUE, caption = "Analyse Coûts-Bénéfices") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = F, font_size = 35) %>%
+  row_spec(c(1,5), color = "green") %>%
+  row_spec(3, color = "lightgreen") %>%
+  column_spec(1, bold = T, border_right = TRUE) 
+
+
+```
+
+::: notes 
+
+Source: wikipedia
+
+Imaginons deux agriculteurs, un eleveur de bovins et un céréalier qui sont voisins. Le champ n'est pas cloturé et les bovins peuvent potentiellement détruire les cultures du fermier voisin. Plus l'eleveur possède de bovin, plus il risque d'endommager la récolte du céréalier. 
+
+Deux possibilités: 
+
+- si le céréalier n'a pas le droit d'abimer les récoltes du céréaliers. Dans ce cas, la stratégie optimale pour le fermier est de ne recevoir aucun dommage. Mais dans ce cas, l'eleveur à une utilité de 0. Un accord gagnant-gagnant peut être le suivant: le céréalier autorise l'eleveur a augmenté son activité contre une rémunération qui compense les dommages causées. La stratégie optimale est très clairement un niveau d'activité 2, avec l'eleveur qui compense le céréalier d'une somme (une utilité techniquement) allant de 5 (la différence de dommages infligés entre l'état 0 et 2) à 18 (la rémunération du fermier à 2). Le céralier touchera une somme égale à x - 5 et l'eleveur 18 - 5. 
+- Mais imaginons une situation, plus absurde, où le droit français autorise le céréalier à abimer les récoles du céréaliers. Coase montre que le résultat sera parfaitement identique. La stratégie optimale pour l'eleveur est d'augmenter son activité au maximum (4) mais le céréalier ne gagne plus rien. Un accord gagnant-gagnant peut être trouver si le céréalier consent à verser une somme pour que l'eleveur réduise son activité, cette somme pouvait aller de 3 à 11 (3 étant la compensation minimale pour intéresser l'eleveur, et 11 étant la différence de dommage pour le céréalier entre le niveau 2 et 4). L'eleveur obtiendra un paiement de 18 + x, et le céralier - x - 5. 
+
+:::
+
+
+### Le théorème de Coase 
+
+:::: {.columns}
+:::{.column width=70%}
+>  "Si les coûts de transaction sont nuls et si les droits de propriété sont bien définis, des individus impliqués dans une externalité négocieront de façon à obtenir une allocation efficace des ressources"
+
+> "L’affectation des ressources sera identique quelle que soit la répartition des droits de propriété"
+
+:::
+:::{.column width=30%}
+<center>
+![L'économiste américain Ronald Coase (1910-2013)](image/ronald_coase.jpg)
+</center>
+:::
+::::
+
+::: notes 
+Source image: nobelprize.org
+:::
+
+### Le marché carbone européen 
+
+- Quota d'émissions par entreprise:
+  - si l'entreprise dépasse, elle doit acheter des "droits à polluer" supplémentaires ;
+  - si elle ne les dépasse pas, elle peut vendre ces droits à d'autres entreprises. 
+
+. . . 
+
+- Internalisation du coût social de la pollution dans le coût privé de l'entreprise.   
+
+- Les ventes de droits à polluer par les Etats Européens servent à financer la transition (MaPrimeRénov' en France)
+
+::: notes
+
+- L'union européenne fixe un quota de carbone chaque année pour l'ensemble des installations pollueuses. 
+
+- Construit en 2005 
+
+- Le quota diminue chaque année 
+
+- Le marché européen couvre environ 40% des émissions de l'Europe (pas d'émissions fugitives: agriculture, culture, émissions individuelles).
+
+:::
+
+### Le marché carbone européen {.nostretch}
+
+![Source: Fabrice Rossi](image/carbon_installations.png){width=550 height=550}
+
+
+::: notes
+- source: Fabrice Rossi, https://neocarto.hypotheses.org/13533
+
+- beaucoup d'information sur le [site du gouvernement](https://www.ecologie.gouv.fr/marches-du-carbone)
+
+- Remarques: 
+  - Poids de la production d'électricité fossile ;
+  - La France est un faux "bon" élève ;
+  - Emissions importées (taxe carbone au frontière) ;
+  - Les installations en France qui sont au sein du marché carbone ne représente que 20% de ces émission totales (agriculture non pris en compte, individu, etc.).
+  
+:::
+
+### Biens publics et biens communs 
+
+```{r}
+#| label: "ostrom classification"
+
+ostrom_tibble <- tribble(
+  ~` `, ~`Excluabilité Faible`, ~`Excluabilité Forte`,
+  "Rivalité Forte", "Biens Communs", "Biens Privés",
+  "Rivalité Faible", "Biens Publics", "Biens de Club"
+)
+
+ostrom_tibble %>%
+  kbl(caption = "Classification des biens selon Ostrom et Ostrom (1977):") %>%
+  column_spec(1, bold = T, width = "2in") %>%
+  kable_minimal() %>%
+  kable_styling(full_width = F) 
+```
+
+
+::: {.notes}
+
+- Ostrom V. et E. Ostrom, 1977, « Public Goods and Public Choices », in Alternatives for Delivering Public Services: Toward Improved Performance, ed. Emanuel S. Savas, 7-49. Boulder, CO: Westview Press.
+
+- Un bien **rival** est un bien dont la consommation réduit la consommation disponible pour un autre agent économique. A l’inverse, un bien **non rival** ou avec une rivalité faible, ne réduit pas ou faiblement, la consommation disponible pour les autres agents économiques.
+
+- Un bien **excluable** est un bien pour lequel il est possible de limiter sa consommation (en mettant un prix d’abonnement, ou une obligation d’inscription, etc.). 
+
+
+- Un bien privé est un bien à la fois rival et excluable, c’est le bien le plus commun:: vêtement, nourriture, appartement etc. 
+- Un bien public est un bien non rival et non excluable : éclairage public, les logiciels open-sources
+- Un bien de club est un bien non rival mais excluable : netflix
+- Un bien commun est un bien rival mais non excluable. On peut considérer l’air, la mers, l’eau courante, etc. n’importe quelle ressource environnementale est un bien commun : poisson, forêt, etc. 
+
+Bien préciser que cette classification n'est pas absolu, la rivalité et l'excluabilité sont des différences de degré par de nature. 
+
+:::
+
+
+### Bien publics 
+
+- Souvent associé à une défaillance de marché car il est difficile de rentabiliser la production de ces biens. 
+
+. . . 
+
+- Ce sont souvent, mais pas que, des biens gérés par l'a puissance publique l'Etat:
+  - Défense et sécurité nationale ;
+  - Justice ;
+  - Les phares et l'éclairage public ;
+  - L'éducation et la recherche fondamentale ;
+  - Infrastructures routières. 
+
+::: {.notes}
+
+- Prendre l'exemple du transport ter, de la santé, de l'éducation
+
+- Des biens et services publics peuvent être cependant gérés par des marchés privés mais Etat coordonne, encadre et/ou représente un gros acheteurs de ces services (ex: santé, éducation) 
+::: 
+
+
+### Bien communs 
+
+- Les biens communs ont la particularité d'être rival mais non excluable. 
+
+- La notion a pris une importance considérable avec la crise écologique car elle permet de désigner une grande partie des ressources naturelles de la planète. 
+  - Ces dernières sont en quantités limitées (rivalité) ... 
+  - ... mais tout le monde peut se les approprier (non-excluabilité) ;
+
+
+### La tragédie des communs 
+
+
+{{< video https://www.youtube.com/watch?v=CxC161GvMPc
+    width="1600" height="550"
+    title: = What is the tragedy of the commons? - Nicholas Amendolare  >}}
+
+
+### Le Dilemme du Prisonnier
+
+$$
+\begin{array}{cc}
+ & \text{Joueur B coopère} & \text{Joueur B trahit} \\
+\text{Joueur A coopère} & (3,3) & (0,5) \\
+\text{Joueur A trahit} & (5,0) & (1,1) \\
+\end{array}
+$$
+
+. . . 
+
+- Si les joueurs sont rationnels, et si les joueurs anticipent correctement les gains des autres individus, la stratégie optimale pour les deux joueurs est **toujours** de trahir; 
+
+. . . 
+
+- $5 > 3$ et $1 > 0$
+
+### La tragédie des communs
+
+:::: {.columns}
+::: {.column width=70%}
+
+> "[L]e gardien de troupeau rationnel conclut que la seule solution raisonnable est d'ajouter un autre animal à son troupeau. Et encore un autre ; et encore un autre un autre.... Mais c'est la conclusion de chaque éleveur rationnel partageant un bien commun. C'est là la tragédie."
+
+:::
+
+::: {.column width=30%}
+<center>
+![L'écologue américain George Hardin (1915-2003)](image/garrett_hardin.jpg)
+</center>
+:::
+::::
+
+::: aside
+Source: Hardin, Garett. 1968. "The tragedy of the Commons", _Science 162_ (3859): 1243-1248.
+:::
+
+:::{.notes}
+
+- La « tragédie des communs » désigne le phénomène de surexploitations des biens communs. Si une ressource est en libre accès (faible excluabilité du bien), des agents en compétition vont être rationnellement incités à surexploiter cette ressource. 
+
+- Exemple de la surpêche de la vidéo ou de l’éleveur par George Hardin: pécher a un bénéfice et un coût pour le pécheur. Le bénéfice est qu’il peut augmenter ses ventes individuelles, le coût est une surexploitation des mers, qui va l'affecter lui et les autres éleveurs, voir les générations futures. C'est par ce que le bénéfice est individuel et le coût est collectif qu'une surexploitation se produit. 
+
+- Phénomène rationnel d'un point de vu individuel et irrationnel d'un point de vu collectif. 
+
+Source image: Wikipedia
+:::
+
+### Le Malthusianisme 
+
+:::: {.columns}
+:::{.column width=70%}
+>  "Si elle n’est pas freinée, la population s’accroît en progression géométrique. Les subsistances ne s’accroissent qu’en progression arithmétique… Les effets de ces deux pouvoirs inégaux doivent être maintenus en équilibre par le moyen de cette loi de la nature qui fait de la nourriture une nécessité vitale pour l’homme."  
+
+:::
+:::{.column width=30%}
+<center>
+![L'économiste anglais Thomas Malthus (1766-1834)](image/thomas_malthus.jpg)
+</center>
+:::
+::::
+
+::: aside
+Source: Malthus, Thomas. 1798. _Essai sur le principe de population_.
+:::
+
+:::{.notes}
+Source image: Wikipedia
+
+
+- Le Malthusianisme provient de la pensée de Thomas Malthus, un économiste britannique du 19ème siècle. 
+
+> 'Il est simple : « la population progresse plus vite que les subsistances » ce qui engendre un « déséquilibre croissant ». Il part d’un constat pour lui évident qui est que les surfaces cultivables s’additionnent alors que les bouches à nourrir se multiplient. En langage de son époque, il dit que les subsistances augmentent de façon "arithmétique" et les besoins de façon "géométrique". En langage moderne, on parle dans le premier cas d’évolution "linéaire" et dans le deuxième d’évolution "exponentielle" ' (source: économie.gouv.fr).
+
+- Le principe malthusien vise à se contraindre individuellement à ne pas faire d’enfant et ne pas verser de l'argent aux pauvres, etc. 
+- Trop nombreux pourquoi ? Les émissions augmentent dans les pays où la population stagne.
+- Le principal problème est notre mode de consommation et les inégalités entre pollueurs.
+
+:::
+
+
+### Illustration du principe malthusien 
+
+```{r}
+
+# Définir les paramètres de simulation
+annee_debut <- 1801 # Début du 19ème siècle
+n <- 100 # Augmentation de la période de simulation pour permettre le croisement des courbes
+taux_croissance_subsistances <- 2 # Taux d'augmentation annuel pour les biens de subsistances
+taux_croissance_population <- 1.06 # Ajustement du taux de croissance pour voir le croisement
+
+# Générer les données
+annees <- annee_debut:(annee_debut + n - 1)
+subsistances <- taux_croissance_subsistances * (1:n)
+population <- taux_croissance_population^(1:n)
+
+# Créer un dataframe pour ggplot
+donnees <- data.frame(Annee = rep(annees, 2),
+                      Valeur = c(subsistances, population),
+                      Type = rep(c("Biens de subsistances", "Population"), each = n))
+
+# Générer le graphique
+ggplot(donnees, aes(x = Annee, y = Valeur, color = Type)) +
+  geom_line(size = 1.1) +
+  geom_text(
+    data = subset(donnees, Annee == annee_debut + 80),
+    # Ajustement de la position de geom_text
+    aes(label = ifelse(Type == "Biens de subsistances", "Linéaire", "Exponentielle"),
+        y = Valeur * 1.1),
+    hjust = 0.5,
+    vjust = 0,
+    show_guide  = FALSE
+  )  +
+  labs(
+    x = "",
+    y = "",
+    color = "Type"
+  ) +
+  theme(text = element_text(size = 20)) + 
+  theme_minimal()
+  
+
+
+```
+
+### Elinor Ostrom 
+
+{{< video https://www.youtube.com/watch?v=BDEAgmklNyE
+    width="1600" height="550"
+    title: =  Elinor Ostrom | Women in Economics   >}}
+
+
+### La gestion locale des communs 
+
+:::: {.columns}
+:::{.column width=75%}
+> "Nous avons constaté que les utilisateurs avaient créé des règles de délimitation pour déterminer qui pouvait utiliser la ressource, des règles de choix relatives à l'emplacement du flux d'unités de ressources, ainsi que des formes actives de surveillance et de sanction locale des contrevenants aux règles"
+
+:::
+:::{.column width=25%}
+<center>
+![L'économiste Elinor Ostrom (1933-2012)](image/elinor_ostrom.jpg)
+</center>
+:::
+::::
+
+::: aside
+Source: Elinor Ostrom, Beyond Markets and States: Polycentric Governance of Complex Economic Systems, Nobel Prize Lecture.
+:::
+
+
+
